@@ -1,0 +1,2 @@
+2021-05-14 14:24:09,804   INFO  ==> Loading parameters from checkpoint /home/ou/workspace/ros_ws/ironworks_ws/src/lidar_perception/ros_pvrcnn/config/pv_rcnn_8369.pth to GPU
+2021-05-14 14:24:10,705   INFO  ==> Done (loaded 367/367)
