@@ -1,0 +1,9 @@
+
+.idea
+cmake-build-debug
+
+**/OpenPCDet
+**/a.out
+**/log
+**/*.pth
+

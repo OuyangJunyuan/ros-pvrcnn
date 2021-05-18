@@ -1,0 +1,72 @@
+DATASET: 'KittiDataset'
+DATA_PATH: '../data/kitti'
+
+POINT_CLOUD_RANGE: [-40, -40, -7, 40, 40, 3.3] #[-40, -40, -7, 40, 40, 3.3] # 修改了 原来[0, -40, -3, 70.4, 40, 1] -x -y -z +x +y +z
+                                               # 小挖雷达距离地面3.3m。而最大物体高度为11.因此y方向范围为 (3.3-11,3.3)
+                                            # 修改这个可能造成训练时候提示mismatch，修改体素尺寸或大小可以fix
+DATA_SPLIT: {  #数据分割
+    'train': train,
+    'test': val
+}
+
+INFO_PATH: {  #信息路径
+    'train': [kitti_infos_train.pkl],
+    'test': [kitti_infos_val.pkl],
+}
+
+FOV_POINTS_ONLY: False  #仅视点, 修改了，原来为True
+
+
+DATA_AUGMENTOR:
+    DISABLE_AUG_LIST: ['placeholder']    #停用增强器
+    AUG_CONFIG_LIST: #增强器
+        - NAME: gt_sampling  #gt采样
+          USE_ROAD_PLANE: False    # 不使用地平面
+          DB_INFO_PATH:  # DB-database数据库信息路径
+              - kitti_dbinfos_train.pkl
+          PREPARE: {
+             filter_by_min_points: ['truck1:50','truck3:50', 'person:5'],  # 过滤少于点数的物体，做gt增强时 不用 那些点数过少的gtbox
+             filter_by_difficulty: [-2],
+          }
+
+          SAMPLE_GROUPS: ['truck1:6','truck3:6', 'person:20']  # 每个物体进行几个groups采样
+          NUM_POINT_FEATURES: 4 # 强度信息生成数据集时候设置为0列了。
+          DATABASE_WITH_FAKELIDAR: False  #不使用FAKELIDAR的数据库
+          REMOVE_EXTRA_WIDTH: [0.0, 0.0, 0.0]  #不删除多余的宽度
+          LIMIT_WHOLE_SCENE: True  # 是则限制为使用当前场景的gtbox，不够再从存有所有的gtbox的database中补充到sample_groups个数。
+          # 否则直接从database中随机采样sample_groups个gtbox，把与当前场景iou小的添加到当前场景gtbox中
+
+        - NAME: random_world_flip  #随机翻转
+          ALONG_AXIS_LIST: ['x']  #沿轴
+
+        - NAME: random_world_rotation  #随机旋转
+          WORLD_ROT_ANGLE: [-0.78539816, 0.78539816]  #旋转角度
+
+        - NAME: random_world_scaling   #随机缩放
+          WORLD_SCALE_RANGE: [0.95, 1.05] #范围
+
+
+POINT_FEATURE_ENCODING: {
+    encoding_type: absolute_coordinates_encoding, # 要求 xyz 在前面,直接从src中抠出used的
+    used_feature_list: ['x', 'y', 'z'],   # 使用的通道数。只用xyz不用强度信息，后面看看是否仿真强度信息可用。
+    src_feature_list: ['x', 'y', 'z'],  # 原始输入特征,即input的通道数。
+}
+
+
+DATA_PROCESSOR:
+    - NAME: mask_points_and_boxes_outside_range # 作用是遮盖所有在点云范围之外的点和gt_box
+      REMOVE_OUTSIDE_BOXES: True   #移除box外的点
+
+    - NAME: shuffle_points  #Shuffle点，打乱点的顺序
+      SHUFFLE_ENABLED: {
+        'train': True,  # 只有训练的时候那么干，防止学习到错误特征。
+        'test': False
+      }
+
+    - NAME: transform_points_to_voxels #将点转换为体素
+      VOXEL_SIZE: [0.05, 0.05, 0.20]  # 体素大小
+      MAX_POINTS_PER_VOXEL: 5       # 每个体素内最多有几个点
+      MAX_NUMBER_OF_VOXELS: {       # 体素上限
+        'train': 16000,           # 指非空体素把？ 0.8ms(~6k voxels) 3.2GHz机器上的体素化速度
+        'test': 40000
+      }

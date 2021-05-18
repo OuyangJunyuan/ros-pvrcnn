@@ -1,0 +1,8 @@
+sensor_msgs/PointCloud2 point_cloud
+---
+#result definition
+std_msgs/Header header
+box3d[] result
+std_msgs/String[] cls_list
+---
+#feedback
